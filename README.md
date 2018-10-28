@@ -1,6 +1,6 @@
 DevOps Coding Test
 ==================
-### Assumptions
+## Assumptions
 The user is running the scripts on a Linux machine, after successfully configuring the AWS config and credentials entries in the home folder:
 
 ```bash
@@ -24,9 +24,9 @@ curl -O https://bootstrap.pypa.io/get-pip.py
 ```
 Has an installed working version of docker and docker engine.
 
-#### Option 1: Deploy via bash/aws cli and CloudFormation
+## Option 1: Deploy via bash/aws cli and CloudFormation
 
-##### Prerequisites
+### Prerequisites
 
 Install the AWS command line interface and boto3 packages:
 
@@ -58,9 +58,9 @@ You can access the service on the following URL:
  --->     http://XXXXXXXXXXXXX.eu-west-1.elb.amazonaws.com/now 
 ```
 
-#### Option 2: Deploy via Ansible modules
+## Option 2: Deploy via Ansible modules
 
-##### Prerequisites
+### Prerequisites
 
 Install the ansible requirements from ansible/requirements.txt
 
@@ -97,7 +97,7 @@ ok: [localhost] => {
 
 ```
 
-#### Application and docker image
+## Application and docker image
 
 The application is comprised of a simple flask framework app, displaying the time in UTC
 For this minimalistic example `python:3.6-alpine` image is used, because of the optimized size of the container.
@@ -108,7 +108,7 @@ Internally the application container listents to `TCP:8080`
 
 The application in app/app.py is well documented with inline commends and docstrings.
 
-#### Health check script
+## Health check script
 The monitoring script collects dynamically the DNS names from the load balancers, created in AWS using boto3. Each has the pre-defined name of the option for deployment ['ecs-services', 'ans-time-app-lb']
 
 If you have chosen Option 1, run the script from the root:
