@@ -1,0 +1,12 @@
+---
+- name: "Create ECS repository for the image"
+  ecs_ecr: 
+    name: engagetech
+  register: repo
+
+- name: "Set fact: URI of the newly created repository"
+  set_fact:
+    repo_uri: "{{ repo.repository.repositoryUri }}"
+
+- debug:
+    msg: "{{ repo_uri }}"

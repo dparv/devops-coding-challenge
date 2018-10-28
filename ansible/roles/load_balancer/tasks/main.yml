@@ -1,0 +1,49 @@
+---
+- name: "Create the target group"
+  elb_target_group:
+    name: ans-timeapp-target-group
+    state: present
+    vpc_id: "{{ vpc_id }}"
+    port: 80
+    protocol: http
+    successful_response_codes: "200-299"
+    health_check_interval: 60
+    health_check_path: /now
+    health_check_port: 8080
+    health_check_protocol: http
+    health_check_timeout: 5
+    healthy_threshold_count: 10
+    target_type: ip
+  register: tg
+
+- name: "Set fact: Target Group"
+  set_fact:
+    target_group: "{{ tg }}"
+
+- name: "Create the load balancer and listener"
+  elb_application_lb:
+    name: ans-time-app-lb
+    security_groups:
+      - "{{ lb_sec_group.group_id }}"
+    subnets: "{{ vpc_subnets }}"
+    listeners:
+      - Protocol: HTTP
+        Port: 80
+        DefaultActions:
+          - Type: forward
+            TargetGroupName: "{{ target_group.target_group_name }}"
+        Rules:
+          - Conditions:
+            - Field: path-pattern
+              Values:
+                - '/now'
+            Priority: 1
+            Actions:
+              - TargetGroupName: "{{ target_group.target_group_name }}"
+                Type: forward
+    state: present
+  register: lb
+
+- name: "Set fact: Load Balancer"
+  set_fact:
+    load_balancer: "{{ lb }}"

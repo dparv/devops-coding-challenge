@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Definition for the service, load balancer and listener"
+Resources:
+  # Create the service, that will deploy and scale the containers
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: ListenerRule
+    Properties:
+      ServiceName: timeapp-service
+      TaskDefinition: !ImportValue TimeAppTask
+      Cluster: !ImportValue 'TAECSCluster'
+      LaunchType: FARGATE
+      DesiredCount: 3
+      DeploymentConfiguration:
+        MaximumPercent: 100
+        MinimumHealthyPercent: 70
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !ImportValue AZSubNet1
+            - !ImportValue AZSubNet2
+            - !ImportValue AZSubNet3
+          SecurityGroups:
+            - !ImportValue ContainerSecurityGroup
+      LoadBalancers:
+        - ContainerName: timeapp
+          ContainerPort: 8080
+          TargetGroupArn: !Ref TimeAppTargetGroup
+  # Define the target group for the load balancer only on TCP 80
+  TimeAppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: timeapp-target-group
+      VpcId: !ImportValue VPC
+      Port: 80
+      Protocol: HTTP
+      Matcher:
+        HttpCode: 200-299
+      HealthCheckIntervalSeconds: 60
+      HealthCheckPath: '/now'
+      HealthCheckPort: 8080
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 10
+      TargetType: ip
+  # Create the Load balancer
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: ecs-services
+      Subnets:
+        - !ImportValue 'AZSubNet1'
+        - !ImportValue 'AZSubNet2'
+        - !ImportValue 'AZSubNet3'
+      SecurityGroups:
+        - !ImportValue LoadBalancerSecurityGroup
+  # Create the listener for the load balance
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn:
+      - LoadBalancer
+      - TimeAppTargetGroup
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TimeAppTargetGroup
+  # Create a rule for the load balancer
+  ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    DependsOn:
+      - LoadBalancerListener
+      - TimeAppTargetGroup
+    Properties:
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 1
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - /now
+      Actions:
+        - TargetGroupArn: !Ref TimeAppTargetGroup
+          Type: forward

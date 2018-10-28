@@ -1,0 +1,10 @@
+---
+- name: "Create ECS cluster"
+  ecs_cluster:
+    name: AnsCluster
+    state: present
+  register: clstr
+
+- name: "Set fact: ECS cluster ID"
+  set_fact:
+    ecs_cluster: "{{ clstr }}"

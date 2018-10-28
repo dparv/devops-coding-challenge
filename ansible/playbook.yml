@@ -1,0 +1,12 @@
+---
+- hosts: localhost
+  connection: local
+  roles:
+  - ecr
+  - docker
+  - vpc
+  - iam_sec
+  - ecs
+  - taskdef
+  - load_balancer
+  - services

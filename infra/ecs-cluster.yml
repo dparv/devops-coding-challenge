@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Cluster on ECS for the Time App and other miscellaneous tasks'
+
+Resources:
+   # Create the ECS cluster
+  TAECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: 'timeapp-cluster'
+  # As this task is the smallest, we wil use it to create some groups
+  # Used in the future by the load banacer and the containers
+  # Create cloud watch group
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: 'timeapp'
+      RetentionInDays: 1
+  # Create the ECS containers security group
+  ContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: LoadBalancerSecurityGroup
+    Properties:
+     VpcId: !ImportValue 'VPC'
+     GroupDescription: 'The group for the ECS containers'
+     # Only allow access to the containers from the VPC on tcp 8080
+     SecurityGroupIngress:
+        - CidrIp: 10.0.0.0/16
+          IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+  # Create the load balancer security group
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for loadbalancer to services on ECS
+      VpcId: !ImportValue 'VPC'
+      # Allow access to the load balancer from internet on tcp 80
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+
+Outputs:
+  Cluster:
+    Value: !Ref TAECSCluster
+    Export:
+      Name: 'TAECSCluster'
+  ContainerSecurityGroup:
+    Description: container security group
+    Value: !Ref ContainerSecurityGroup
+    Export:
+      Name: 'ContainerSecurityGroup'
+  LoadBalancerSecurityGroup:
+    Description: 'Security Group used for the containers / load balancer'
+    Value: !Ref LoadBalancerSecurityGroup
+    Export:
+      Name: 'LoadBalancerSecurityGroup'

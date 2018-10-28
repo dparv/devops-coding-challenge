@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VPC for TimeApp'
+
+Resources:
+  # Create the VPC
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: '10.0.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+  # Create the first subnet in AZ1
+  AZSubNet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs 'eu-west-1']
+      CidrBlock: !Sub '10.0.0.0/20'
+      MapPublicIpOnLaunch: true
+  # Create the second subnet in AZ2
+  AZSubNet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs 'eu-west-1']
+      CidrBlock: !Sub '10.0.16.0/20'
+      MapPublicIpOnLaunch: true
+  # Create the third subnet in AZ3
+  AZSubNet3:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [2, !GetAZs 'eu-west-1']
+      CidrBlock: !Sub '10.0.32.0/20'
+      MapPublicIpOnLaunch: true
+  # Create the internet gateway
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+  # Attach it to the VPC
+  VPCGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+  # Create a routing table for the VPC
+  RouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+  # Associate the route with subnet 1
+  RouteTableAssociation1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AZSubNet1
+      RouteTableId: !Ref RouteTable
+  # Associate the route with subnet 2
+  RouteTableAssociation2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AZSubNet2
+      RouteTableId: !Ref RouteTable
+  # Associate the route with subnet 3
+  RouteTableAssociation3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref AZSubNet3
+      RouteTableId: !Ref RouteTable
+  # Enable the instance to access internet
+  InternetRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+Outputs:
+  VPC:
+    Description: VPC
+    Value: !Ref VPC
+    Export:
+      Name: 'VPC'
+  AZSubNet1:
+    Description: 'Subnet in availability zone 1'
+    Value: !Ref AZSubNet1
+    Export:
+      Name: 'AZSubNet1'
+  AZSubNet2:
+    Description: 'Subnet in availability zone 2'
+    Value: !Ref AZSubNet2
+    Export:
+      Name: 'AZSubNet2'
+  AZSubNet3:
+    Description: 'Subnet in availability zone 3'
+    Value: !Ref AZSubNet3
+    Export:
+      Name: 'AZSubNet3'

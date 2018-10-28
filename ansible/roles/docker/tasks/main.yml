@@ -1,0 +1,26 @@
+---
+- name: "Builds the docker image locally"
+  shell: docker build -t engagetech:latest ../app/.
+  register: docker_build
+
+- debug:
+    msg: "{{ docker_build.stdout_lines }}"
+
+- name: "Get fact: Get account ID"
+  aws_caller_facts:
+  register: caller_facts
+
+- name: "Set fact: AWS ECR URI"
+  set_fact:
+    aws_ecr_uri: "{{ caller_facts.account }}.dkr.ecr.eu-west-1.amazonaws.com"
+
+- name: "Tag image for ECR"
+  shell: docker tag engagetech:latest {{ aws_ecr_uri }}/engagetech:latest
+  register: "docker_tag"
+
+- name: "Push image to AWS ECR"
+  shell: docker push {{ aws_ecr_uri }}/engagetech:latest
+  register: "docker_push"
+
+- debug:
+    msg: "{{ docker_push.stdout_lines }}"

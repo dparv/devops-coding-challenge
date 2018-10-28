@@ -1,0 +1,53 @@
+---
+- name: "Create IAM roles used for ECS task execution"
+  iam_role:
+    name: AnsECSTaskExecRole
+    state: present
+    assume_role_policy_document: "{{ lookup('file','assume_role_policy.json') }}"
+    description: "Role for ECS task execution"
+  register: iam_role
+
+- name: "Set fact: IAM role name"
+  set_fact:
+    iam_role_name: "{{ iam_role }}"
+
+- name: "Assign AmazonECSTaskExecutionRolePolicy to the AnsECSTaskExecRole role"
+  iam_policy:
+    iam_type: role
+    iam_name: "{{ iam_role_name.role_name }}"
+    policy_name: AmazonECSTaskExecutionRolePolicy
+    policy_json: '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["ecr:GetAuthorizationToken","ecr:BatchCheckLayerAvailability","ecr:GetDownloadUrlForLayer","ecr:BatchGetImage","logs:CreateLogStream","logs:PutLogEvents"],"Resource":"*"}]}'
+    state: present
+
+- name: "Create Load Balancer security group"
+  ec2_group:
+    name: lb-sec-group
+    description: "Group for the loadbalancer to the service on ECS"
+    vpc_id: "{{ vpc_id }}"
+    rules:
+      - proto: tcp
+        ports:
+          - 80
+        cidr_ip: 0.0.0.0/0
+        rule_desc: "Allow on port 80"
+    state: present
+  register: lb_sec_group
+
+- name: "Create Container security group"
+  ec2_group:
+    name: container-sec-group
+    description: "Group for the containers"
+    vpc_id: "{{ vpc_id }}"
+    rules:
+      - proto: tcp
+        ports:
+          - 8080
+        cidr_ip: 192.168.0.0/16
+        rule_desc: "Allow on port 8080"
+    state: present
+  register: container_sec_group
+
+- name: "Set facts for security groups"
+  set_fact:
+    lb_sec_g: "{{ lb_sec_group }}"
+    ct_sec_g: "{{ container_sec_group }}"

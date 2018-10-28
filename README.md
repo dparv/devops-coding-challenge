@@ -1,65 +1,124 @@
 DevOps Coding Test
 ==================
+### Assumptions
+The user is running the scripts on a Linux machine, after successfully configuring the AWS config and credentials entries in the home folder:
 
-# Goal
+```bash
+cat ~/.aws/config
+[default]         
+output = json     
+region = eu-west-1
+cat ~/.aws/credentials
+[default]             
+aws_secret_access_key = ############
+aws_access_key_id = ############
+```
+Downloaded the scripts from the repo:
 
-Script the creation of a service, and a healthcheck script to verify it is up and responding correctly.
+```shell
+git clone https://github.com/dparv/devops-coding-challenge.git .
+```
+Has an installed working verision of pip
+```shell
+curl -O https://bootstrap.pypa.io/get-pip.py
+```
+Has an installed working version of docker and docker engine.
 
-# Prerequisites
+#### Option 1: Deploy via bash/aws cli and CloudFormation
 
-You will need an AWS account. Create one if you don't own one already. You can use free-tier resources for this test.
+##### Prerequisites
 
-# The Task
+Install the AWS command line interface and boto3 packages:
 
-You are required to provision and deploy a new service in AWS. It must:
+```shell
+pip install -r ansible/requirements.txt
+```
 
-* Be publicly accessible, but *only* on port 80.
-* Return the current time on `/now`.
+Run the deployment script from the root. The script has several steps to complete to do the full deployment.
+```shell
+./deploy.sh
+```
+- Builds a new local docker image with the application in /app
+- Creates a repository on AWS ECR
+- Tags the image and pushes it to AWS ECR
+- Uses CloudFormation to create the following infrastructure
+ - 1 VPC and 3 private subnets from infra/vpc.yml
+ - IAM role for execution from infra/iam.yml
+ - 1 ECS cluster from infra/ecs-cluster.yml
+ - 1 container task definition from infra/app-task.yml
+ - ECS Service and Load balancer from infra/load-balancer.yml
 
-# Mandatory Work
+The deployment script has inline comments for the steps it performs and a verbose output of the actions, being performed on AWS.
 
-Fork this repository.
+After the script finishes, the user is presented with an URL to access the working application load balancer DNS name.
 
-* Script your service using your configuration management and/or infrastructure-as-code tool of choice.
-* Provision the service in your AWS account.
-* Write a healthcheck script that can be run externally to periodically check if the service is up and its clock is not desynchronised by more than 1 second.
-* Alter the README to contain instructions required to:
-  * Provision the service.
-  * Run the healthcheck script.
-* Provide us IAM credentials to login to the AWS account. If you have other resources in it make sure we can only access what is related to this test.
+```shell
+Deployment complete
+You can access the service on the following URL:
+ --->     http://XXXXXXXXXXXXX.eu-west-1.elb.amazonaws.com/now 
+```
 
-Once done, give us access to your fork. Feel free to ask questions as you go if anything is unclear, confusing, or just plain missing.
+#### Option 2: Deploy via Ansible modules
 
-# Extra Credit
+##### Prerequisites
 
-We know time is precious, we won't mark you down for not doing the extra credits, but if you want to give them a go...
+Install the ansible requirements from ansible/requirements.txt
 
-* Run the service inside a Docker container.
-* Make it highly available.
-* We value CloudFormation and rely on it heavily. If you already know CF, we’d love to see you use it.
+```shell
+pip install -r ansible/requirements.txt
+```
 
-# Questions
+To use the ansible deployment method, change the working directory to ansible and run the ansible-playbook executable.
 
-#### What scripting languages can I use?
+```shell
+cd ansible
+ansible-playbook playbook.yml
+```
 
-Anyone you like. You’ll have to justify your decision. We use CloudFormation, Puppet and Python internally. Please pick something you're familiar with, as you'll need to be able to discuss it.
+The provided ansible code performs the following steps:
+- Creates an ECR repository
+- Uses the local machine shell to build, tag and push the docker image to ECR*
+- Creates a VPC
+- Creates IAM role and EC2 security groups (access rules)
+- Build an ECS cluster
+- Creates a task definition for the containers
+- Creates the load balancer
+- Creates a service on the ECS cluster
 
-#### Will I have to pay for the AWS charges?
+\* The ansible docker modules were not used for the image build for simplicity.  Ansible docker module for AWS integration is more complex.
 
-No. You are expected to use free-tier resources only and not generate any charges. Please remember to delete your resources once the review process is over so you are not charged by AWS.
+After the ansible playbook finishes execution, the user is presented with an URL to access the working application load balancer DNS name.
 
-#### What will you be grading me on?
+```shell
+TASK [services : debug] ********************************************************
+ok: [localhost] => {
+    "msg": "Load balancer URL: http://XXXXXXXXX.eu-west-1.elb.amazonaws.com"
+}
 
-Scripting skills, security, elegance, understanding of the technologies you use, documentation.
+```
 
-#### What will you not take into account?
+#### Application and docker image
 
-Brevity. We know there are very simple ways of solving this exercise, but we need to see your skills. We will not be able to evaluate you if you provide five lines of code.
+The application is comprised of a simple flask framework app, displaying the time in UTC
+For this minimalistic example `python:3.6-alpine` image is used, because of the optimized size of the container.
 
-#### Will I have a chance to explain my choices?
+The development web server of flask is used, althou it is not a recomended solution. A better design will include an application server and a web server, for example `uWSGI` with `WSGI` module and `nginx` with `proxy_pass` to a UNIX socket.
 
-If we proceed to a phone interview, we’ll be asking questions about why you made the choices you made. Comments in the code are also very helpful.
+Internally the application container listents to `TCP:8080`
 
-#### Why doesn't the test include X?
+The application in app/app.py is well documented with inline commends and docstrings.
 
-Good question. Feel free to tell us how to make the test better. Or, you know, fork it and improve it!
+#### Health check script
+The monitoring script collects dynamically the DNS names from the load balancers, created in AWS using boto3. Each has the pre-defined name of the option for deployment ['ecs-services', 'ans-time-app-lb']
+
+If you have chosen Option 1, run the script from the root:
+```shell
+./health_check.py
+```
+If you have chosen Option 2, run the script from ansible:
+```shell
+./ansible/health_check.py
+```
+The health check script is well documented with inline commends and docstrings.
+
+**All provided python code is PEP 8 compliant.**

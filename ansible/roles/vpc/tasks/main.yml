@@ -1,0 +1,60 @@
+- name: "Create VPC"
+  ec2_vpc_net:
+    name: MyAnsibleVPC
+    state: present
+    cidr_block: 192.168.0.0/16
+    dns_support: yes
+    dns_hostnames: yes
+    region: "{{ aws_region }}"
+    tenancy: default
+  register: ans_vpc
+
+- name: "Set fact: VPC ID"
+  set_fact:
+    vpc_id: "{{ ans_vpc.vpc.id }}"
+
+- name: "Create Subnet 1,2 and 3 in availability zones a,b and c"
+  ec2_vpc_subnet:
+    vpc_id: "{{ vpc_id }}"
+    state: present
+    cidr: "{{ item.cidr }}"
+    az: "{{ item.az }}"
+    resource_tags:
+      Name: "{{ item.name }}"
+  with_items:
+  - { name: AZSubNet1, cidr: '192.168.0.0/20' , az: '{{ aws_region }}a' }
+  - { name: AZSubNet2, cidr: '192.168.16.0/20', az: '{{ aws_region }}b' }
+  - { name: AZSubNet3, cidr: '192.168.32.0/20', az: '{{ aws_region }}c' }
+
+- name: "Gather facts: Subnets IDs"
+  ec2_vpc_subnet_facts:
+    filters:
+      vpc-id: "{{ ans_vpc.vpc.id }}"
+  register: vpc_networks
+
+- name: "Set facts: Subnet IDs"
+  set_fact:
+    vpc_subnets: "{{ vpc_networks.subnets|map(attribute='id')|list }}"
+
+- name: "Create internet gateway"
+  ec2_vpc_igw:
+    vpc_id: "{{ vpc_id }}"
+    state: present
+    region: "{{ aws_region }}"
+  register: igw
+
+- name: "Set fact: Gateway"
+  set_fact:
+    vpc_gateway: "{{ igw }}"
+
+- name: "Create internet route and routing tables"
+  ec2_vpc_route_table:
+    tags:
+      Name: Public
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ aws_region }}"
+    subnets: "{{ vpc_subnets }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ vpc_gateway.gateway_id }}"
+  register: public_route_table

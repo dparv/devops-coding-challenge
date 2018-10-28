@@ -1,0 +1,24 @@
+---
+- name: "Register the ECS services to run our app" 
+  ecs_service:
+    state: present
+    name: ans-time-app-services
+    task_definition: "{{ ansl_time_app_task.taskdefinition.taskDefinitionArn }}"
+    cluster: "{{ ecs_cluster.cluster.clusterName }}"
+    launch_type: FARGATE
+    desired_count: 3
+    deployment_configuration:
+      minimum_healthy_percent: 70
+      maximum_percent: 150
+    network_configuration:
+      subnets: "{{ vpc_subnets }}"
+      security_groups:
+        - "{{ container_sec_group.group_id }}"
+      assign_public_ip: yes
+    load_balancers:
+      - targetGroupArn: "{{ target_group.target_group_arn }}"
+        containerName: ans-time-app
+        containerPort: 8080
+
+- debug:
+    msg: "Load balancer URL: http://{{ load_balancer.dns_name }}"
