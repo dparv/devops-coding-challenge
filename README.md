@@ -68,6 +68,13 @@ Install the ansible requirements from ansible/requirements.txt
 pip install -r ansible/requirements.txt
 ```
 
+Make sure the following environment variables are properly set:
+
+```shell
+export AWS_ACCESS_KEY_ID='###########'
+export AWS_SECRET_ACCESS_KEY='###########'
+```
+
 To use the ansible deployment method, change the working directory to ansible and run the ansible-playbook executable.
 
 ```shell
