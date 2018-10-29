@@ -1,7 +1,7 @@
 DevOps Coding Test
 ==================
 ## Assumptions
-The user is running the scripts on a Linux machine, after successfully configuring the AWS config and credentials entries in the home folder (**make sure you are using eu-west-1**), by using **aws configure** command:
+The user is running the scripts on a Linux machine, after successfully configuring the AWS config and credentials entries in the home folder (**make sure you are using eu-west-1**), by using the **aws configure** command:
 
 ```shell
 cat ~/.aws/config
